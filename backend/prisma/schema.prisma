@@ -1,0 +1,139 @@
+// This is your Prisma schema file
+datasource db {
+  provider = "postgres"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                Int                @id @default(autoincrement())
+  email             String             @unique
+  password          String
+  name              String
+  role              Role               @default(STAFF)
+  createdAt         DateTime           @default(now())
+  stockTransactions StockTransaction[]
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+model Product {
+  id                Int                @id @default(autoincrement())
+  name              String
+  description       String?
+  category          Category           @relation(fields: [categoryId], references: [id])
+  categoryId        Int
+  currentStock      Int                @default(0)
+  reorderPoint      Int                @default(10)
+  price             Decimal            @db.Decimal(10, 2)
+  sku               String             @unique
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  stockTransactions StockTransaction[]
+  supplierProducts  SupplierProduct[]
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Supplier {
+  id              Int               @id @default(autoincrement())
+  name            String
+  email           String            @unique
+  phone           String
+  address         String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  supplierOrders  SupplierOrder[]
+  supplierProducts SupplierProduct[]
+}
+
+model SupplierProduct {
+  id         Int      @id @default(autoincrement())
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  supplierId Int
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  Int
+  price      Decimal  @db.Decimal(10, 2)
+  leadTime   Int      // in days
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([supplierId, productId])
+}
+
+model SupplierOrder {
+  id         Int           @id @default(autoincrement())
+  supplier   Supplier      @relation(fields: [supplierId], references: [id])
+  supplierId Int
+  orderDate  DateTime      @default(now())
+  status     OrderStatus   @default(PENDING)
+  items      OrderItem[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+}
+
+model OrderItem {
+  id              Int           @id @default(autoincrement())
+  supplierOrder   SupplierOrder @relation(fields: [supplierOrderId], references: [id])
+  supplierOrderId Int
+  productId       Int
+  quantity        Int
+  price           Decimal       @db.Decimal(10, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model StockTransaction {
+  id        Int       @id @default(autoincrement())
+  product   Product   @relation(fields: [productId], references: [id])
+  productId Int
+  user      User      @relation(fields: [userId], references: [id])
+  userId    Int
+  quantity  Int       // positive for stock in, negative for stock out
+  type      StockTransactionType
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+enum StockTransactionType {
+  STOCK_IN
+  STOCK_OUT
+  ADJUSTMENT
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  type      NotificationType
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+enum NotificationType {
+  LOW_STOCK
+  ORDER_UPDATE
+  SYSTEM
+}
+
