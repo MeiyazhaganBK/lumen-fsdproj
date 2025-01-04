@@ -1,40 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart2, Plus, Minus, RefreshCw } from 'lucide-react';
+import { getProducts, createStockTransaction, getStockTransactions } from './services/api';
 
 const StaffPage = () => {
-  const [products, setProducts] = useState([
-    { id: 1, name: 'Router X1', stock: 150, category: 'Networking' },
-    { id: 2, name: 'Switch Y2', stock: 75, category: 'Networking' },
-    { id: 3, name: 'Fiber Optic Cable', stock: 500, category: 'Cabling' },
-    { id: 4, name: 'Wireless Access Point', stock: 100, category: 'Wireless' },
-    { id: 5, name: 'VoIP Phone', stock: 200, category: 'Telephony' },
-  ]);
-
-  const [transactionType, setTransactionType] = useState('add');
+  const [products, setProducts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [transactionType, setTransactionType] = useState('STOCK_IN');
   const [selectedProduct, setSelectedProduct] = useState('');
-  const [quantity, setQuantity] = useState(0);
+  const [quantity, setQuantity] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleTransaction = (e) => {
-    e.preventDefault();
-    const updatedProducts = products.map(product => {
-      if (product.id === parseInt(selectedProduct)) {
-        return {
-          ...product,
-          stock: transactionType === 'add' 
-            ? product.stock + parseInt(quantity)
-            : Math.max(0, product.stock - parseInt(quantity))
-        };
-      }
-      return product;
-    });
-    setProducts(updatedProducts);
-    setSelectedProduct('');
-    setQuantity(0);
+  useEffect(() => {
+    fetchProducts();
+    fetchTransactions();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const data = await getProducts();
+      setProducts(data);
+    } catch (err) {
+      setError('Failed to fetch products');
+      console.error('Error fetching products:', err);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const fetchTransactions = async () => {
+    try {
+      const data = await getStockTransactions();
+      setTransactions(data);
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+    }
+  };
+
+  const handleTransaction = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const transactionData = {
+        productId: parseInt(selectedProduct),
+        quantity: parseInt(quantity),
+        type: transactionType
+      };
+      
+      await createStockTransaction(transactionData);
+      
+      // Refresh data after transaction
+      await fetchProducts();
+      await fetchTransactions();
+      
+      // Reset form
+      setSelectedProduct('');
+      setQuantity('');
+      setError(null);
+    } catch (err) {
+      setError('Failed to process transaction');
+      console.error('Error creating transaction:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading && !products.length) {
+    return <div className="container mx-auto p-6">Loading...</div>;
+  }
 
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Staff Dashboard</h1>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
       
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-4 flex items-center">
@@ -54,8 +98,8 @@ const StaffPage = () => {
               {products.map((product) => (
                 <tr key={product.id} className="border-b border-gray-200 hover:bg-gray-100">
                   <td className="py-3 px-4">{product.name}</td>
-                  <td className="py-3 px-4">{product.category}</td>
-                  <td className="py-3 px-4">{product.stock}</td>
+                  <td className="py-3 px-4">{product.category.name}</td>
+                  <td className="py-3 px-4">{product.currentStock}</td>
                 </tr>
               ))}
             </tbody>
@@ -70,7 +114,7 @@ const StaffPage = () => {
         </h2>
         <form onSubmit={handleTransaction} className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
           <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="transactionType">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
               Transaction Type
             </label>
             <div className="flex">
@@ -79,9 +123,9 @@ const StaffPage = () => {
                   type="radio"
                   className="form-radio"
                   name="transactionType"
-                  value="add"
-                  checked={transactionType === 'add'}
-                  onChange={() => setTransactionType('add')}
+                  value="STOCK_IN"
+                  checked={transactionType === 'STOCK_IN'}
+                  onChange={(e) => setTransactionType(e.target.value)}
                 />
                 <span className="ml-2">Add Stock</span>
               </label>
@@ -90,9 +134,9 @@ const StaffPage = () => {
                   type="radio"
                   className="form-radio"
                   name="transactionType"
-                  value="remove"
-                  checked={transactionType === 'remove'}
-                  onChange={() => setTransactionType('remove')}
+                  value="STOCK_OUT"
+                  checked={transactionType === 'STOCK_OUT'}
+                  onChange={(e) => setTransactionType(e.target.value)}
                 />
                 <span className="ml-2">Remove Stock</span>
               </label>
@@ -135,8 +179,9 @@ const StaffPage = () => {
             <button
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline flex items-center"
               type="submit"
+              disabled={loading}
             >
-              {transactionType === 'add' ? (
+              {transactionType === 'STOCK_IN' ? (
                 <>
                   <Plus className="mr-2" size={16} />
                   Add Stock
@@ -156,4 +201,3 @@ const StaffPage = () => {
 };
 
 export default StaffPage;
-

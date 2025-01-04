@@ -136,7 +136,7 @@ app.post(
   async (req, res) => {
     try {
       const { name, description, categoryId, currentStock, reorderPoint, price, sku } = req.body;
-      
+      console.log(name, description, categoryId, currentStock, reorderPoint, price, sku);
       const product = await prisma.product.create({
         data: {
           name,
@@ -151,9 +151,10 @@ app.post(
           category: true,
         },
       });
-      
+      console.log(product);
       res.json(product);
     } catch (error) {
+        console.log(error);
       res.status(500).json({ error: 'Error creating product' });
     }
   }
@@ -289,6 +290,25 @@ app.post('/api/stock-transactions', async (req, res) => {
           res.status(500).json({ error: 'Internal server error' });
         }
       });
+
+
+      // DELETE /api/stock-transactions/:id
+app.delete('/api/stock-transactions/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+  
+      const deletedTransaction = await prisma.stockTransaction.delete({
+        where: {
+          id: parseInt(id),
+        },
+      });
+  
+      res.status(200).json(deletedTransaction);
+    } catch (error) {
+      console.error('Error deleting stock transaction:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
     
     // Update product stock
     await prisma.product.update({

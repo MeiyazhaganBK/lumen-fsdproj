@@ -88,6 +88,11 @@ export const getStockTransactions = async () => {
   return response.data;
 };
 
+export const removeStockTransaction = async (transactionId) => {
+  const response = await api.delete(`/stock-transactions/${transactionId}`);
+  return response.data;
+};
+
 
 // Supplier Management
 export const getSuppliers = async () => {
